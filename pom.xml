@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!-- Project identity. groupId + artifactId + version uniquely name your project. -->
+  <groupId>io.github.ash4827</groupId>
+  <artifactId>pipelineci</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+  <name>PipelineCI</name>
+  <description>A CLI that runs pipeline.yml steps in Docker containers</description>
+
+  <properties>
+    <!-- Compile for Java 25 (an LTS release). If the build complains about an
+         unsupported release or class file version, change this to 21. -->
+    <maven.compiler.release>25</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <!-- The class with main(). Must match your package folders exactly. -->
+    <main.class>io.github.ash4827.pipelineci.Main</main.class>
+
+    <!-- Dependency versions in one place -->
+    <picocli.version>4.7.6</picocli.version>
+    <snakeyaml.version>2.3</snakeyaml.version>
+    <docker-java.version>3.4.1</docker-java.version>
+    <slf4j.version>2.0.16</slf4j.version>
+    <junit.version>5.11.3</junit.version>
+  </properties>
+
+  <dependencies>
+    <!-- CLI commands, flags, help text, exit codes -->
+    <dependency>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
+      <version>${picocli.version}</version>
+    </dependency>
+
+    <!-- Reads pipeline.yml -->
+    <dependency>
+      <groupId>org.yaml</groupId>
+      <artifactId>snakeyaml</artifactId>
+      <version>${snakeyaml.version}</version>
+    </dependency>
+
+    <!-- Talks to the Docker daemon (core API + the transport that carries requests) -->
+    <dependency>
+      <groupId>com.github.docker-java</groupId>
+      <artifactId>docker-java-core</artifactId>
+      <version>${docker-java.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.docker-java</groupId>
+      <artifactId>docker-java-transport-httpclient5</artifactId>
+      <version>${docker-java.version}</version>
+    </dependency>
+
+    <!-- docker-java logs through SLF4J. This no-op binding silences it so it
+         doesn't clutter your CLI output. Swap to slf4j-simple to debug Docker issues. -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-nop</artifactId>
+      <version>${slf4j.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!-- Test framework. scope=test means it is never packaged into your jar. -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Compiles your .java files -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+      </plugin>
+
+      <!-- Runs JUnit 5 tests during `mvn test` -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.5.2</version>
+      </plugin>
+
+      <!-- During `mvn package`, bundles your code and all dependencies into ONE
+           runnable jar: target/pipelineci-0.1.0-SNAPSHOT.jar
+           Run it with: java -jar target/pipelineci-0.1.0-SNAPSHOT.jar -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.6.0</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals><goal>shade</goal></goals>
+            <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <transformers>
+                <!-- Tells the jar which class to start with -->
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>${main.class}</mainClass>
+                </transformer>
+                <!-- Merges service files so libraries like docker-java still find their parts -->
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+              </transformers>
+              <filters>
+                <!-- Drops signature files from dependencies, which would otherwise
+                     make the combined jar fail with a security error -->
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
